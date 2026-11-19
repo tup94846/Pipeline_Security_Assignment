@@ -1,0 +1,49 @@
+name: security
+on: [push, pull_request]
+
+# Least privilege: scanners only need to read the repo.
+# Everything not listed here (contents:write, pull-requests:write, packages, etc.) is none.
+permissions:
+  contents: read
+
+jobs:
+  # GATE: a committed secret fails the build.
+  secrets:
+    name: Secret scan (Gitleaks) [GATE]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0          # gitleaks scans full git history
+          persist-credentials: false
+      - name: Gitleaks
+        run: |
+          docker run --rm -u "$(id -u):$(id -g)" -v "${{ github.workspace }}:/repo" \
+            zricethezav/gitleaks:v8.21.2 \
+            detect --source /repo --config /repo/.gitleaks.toml --exit-code 1 --verbose
+
+  # GATE: SAST finding (shell injection) fails the build.
+  sast:
+    name: SAST (Semgrep) [GATE]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Semgrep
+        run: |
+          pip install semgrep
+          semgrep scan --config auto --error
+
+  # REPORT: dependency CVEs are surfaced but do not block (exit-code 0).
+  deps:
+    name: Dependency scan (Trivy) [REPORT]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Trivy
+        run: |
+          docker run --rm -v "${{ github.workspace }}:/repo" aquasec/trivy:0.58.1 \
+            fs --scanners vuln --exit-code 0 --severity HIGH,CRITICAL /repo
