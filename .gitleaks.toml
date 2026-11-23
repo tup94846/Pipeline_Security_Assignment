@@ -1,0 +1,8 @@
+[extend]
+useDefault = true
+
+[[rules]]
+id = "aws-access-key-id-strict"
+description = "AWS access key ID (including documentation example keys)"
+regex = '''AKIA[0-9A-Z]{16}'''
+tags = ["aws", "key"]
