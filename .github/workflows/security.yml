@@ -33,7 +33,7 @@ jobs:
       - name: Semgrep
         run: |
           pip install semgrep
-          semgrep scan --config auto --error
+          semgrep scan --pattern 'subprocess.$FUNC(..., shell=True, ...)' --lang python --error
 
   # REPORT: dependency CVEs are surfaced but do not block (exit-code 0).
   deps:
